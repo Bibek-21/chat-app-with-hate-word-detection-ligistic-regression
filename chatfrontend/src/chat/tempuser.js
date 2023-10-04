@@ -1,28 +1,53 @@
-import "./chat.scss";
 import React, { useState, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+import axios from "axios"; // Import Axios for making HTTP requests
+import { process } from "../store/action/index"; // Import your process function
+import "./chat.scss";
+import { to_Decrypt, to_Encrypt } from "../aes.js";
 
 function Chat({ username, roomname, socket }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
 
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    socket.on("message", (data) => {
+    socket.on("message", async (data) => {
       
+      // Decrypt
+      const ans = to_Decrypt(data.text, data.username);
+      let processedText = process(false, ans, data.text);
+
+      // Make an HTTP request to the hate word detection API
+      try {
+        const response = await axios.post(
+          "http://localhost:5000/detect-hate-word",
+          { text: processedText }
+        );
+
+        // Check if the API response indicates that the message contains hate words
+        processedText= response.text;
+
+       
+      } catch (error) {
+        console.error("Error detecting hate words:", error);
+      }
+
+
       let temp = messages;
       temp.push({
         userId: data.userId,
         username: data.username,
-        text: data.text,
+        text: processedText, // Use the processed text
       });
       setMessages([...temp]);
     });
-  }, [socket, messages]);
+  }, [socket, dispatch, messages]);
 
   const sendData = () => {
     if (text !== "") {
-      
-      socket.emit("chat", text);
+      const ans = to_Encrypt(text); // You should define the to_Encrypt function
+      socket.emit("chat", ans);
       setText("");
     }
   };

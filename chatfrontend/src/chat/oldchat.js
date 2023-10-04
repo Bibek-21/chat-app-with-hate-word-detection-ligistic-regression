@@ -1,28 +1,39 @@
 import "./chat.scss";
+import { to_Decrypt, to_Encrypt } from "../aes.js";
+import { process } from "../store/action/index";
 import React, { useState, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 
 function Chat({ username, roomname, socket }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
 
+  const dispatch = useDispatch();
 
   useEffect(() => {
     socket.on("message", (data) => {
-      
+      const dispatchProcess = (encrypt, msg, cipher) => {
+        dispatch(process(encrypt, msg, cipher));
+      };
+
+      // Decrypt
+      const ans = to_Decrypt(data.text, data.username);
+      dispatchProcess(false, ans, data.text);
+
       let temp = messages;
       temp.push({
         userId: data.userId,
         username: data.username,
-        text: data.text,
+        text: ans,
       });
       setMessages([...temp]);
     });
-  }, [socket, messages]);
+  }, [socket, dispatch, messages]);
 
   const sendData = () => {
     if (text !== "") {
-      
-      socket.emit("chat", text);
+      const ans = to_Encrypt(text);
+      socket.emit("chat", ans);
       setText("");
     }
   };
