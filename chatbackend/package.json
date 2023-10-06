@@ -10,6 +10,8 @@
   "author": "Ephraim",
   "license": "MIT",
   "dependencies": {
+    "aes256": "^1.1.0",
+    "axios": "^1.5.1",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",

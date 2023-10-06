@@ -4,6 +4,8 @@ const socket = require("socket.io");
 const color = require("colors");
 const cors = require("cors");
 const { get_Current_User, user_Disconnect, join_User } = require("./dummyuser");
+const { default: axios } = require("axios");
+const { to_Encrypt, to_Decrypt } = require("./ase");
 
 app.use(express());
 
@@ -13,15 +15,28 @@ app.use(cors());
 
 var server = app.listen(
   port,
-  console.log(
-    `Server is running on the port no: ${(port)} `
-      .green
-  )
+  console.log(`Server is running on the port no: ${port} `.green)
 );
 
 const io = socket(server);
 
-//initializing the socket io connection 
+// Function to send a request to the Flask API for hate word detection
+async function detectHateWord(text) {
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/detect-hate-word",
+      {
+        text: text,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error detecting hate word:", error.message);
+    return error; // Default to not a hate word on error
+  }
+}
+
+//initializing the socket io connection
 io.on("connection", (socket) => {
   //for a new user joining the room
   socket.on("joinRoom", ({ username, roomname }) => {
@@ -46,14 +61,26 @@ io.on("connection", (socket) => {
   });
 
   //user sending message
-  socket.on("chat", (text) => {
-    //gets the room user and the message sent
+  socket.on("chat", async (text) => {
+    //gets the room user and the message
+    let newText = text;
     const p_user = get_Current_User(socket.id);
+    console.log({ id: socket.room, text, username: p_user?.username });
 
-    io.to(p_user.room).emit("message", {
-      userId: p_user.id,
-      username: p_user.username,
-      text: text,
+    if (p_user?.room && socket?.id) {
+      const decryptData = to_Decrypt(text, p_user?.username);
+      // const isHateWord =
+      const { is_hate_word, text: newT } = await detectHateWord(decryptData);
+      if (is_hate_word) {
+        newText = "/70o9oexpULqr8+RnWIUD2DFxyiO";
+      }
+      console.log({ newText });
+    }
+
+    io.to(p_user?.room).emit("message", {
+      userId: p_user?.id,
+      username: p_user?.username,
+      text: newText,
     });
   });
 
