@@ -6,7 +6,7 @@ import "./App.scss";
 import React from "react";
 import io from "socket.io-client";
 
-const socket = io.connect('/');
+const socket = io.connect("/");
 function Appmain(props) {
   return (
     <React.Fragment>
