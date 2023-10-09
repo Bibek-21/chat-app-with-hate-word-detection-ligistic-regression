@@ -4,5 +4,11 @@
     "axios": "^1.5.1",
     "fs": "^0.0.1-security",
     "node-pickle": "^0.0.2"
+  },
+  "scripts": {
+    "runAll": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "node chatbackend/server.js",
+    "start:frontend": "yarn --cwd chatfrontend/react_project start",
+    "start:detector": "python chatFlaskBackend/app.py"
   }
 }

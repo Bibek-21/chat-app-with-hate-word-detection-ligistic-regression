@@ -1,39 +1,48 @@
-from flask import Flask, render_template, request
-from flask_socketio import SocketIO, join_room, leave_room, send, emit
-from dummyUser import dummy_user
+from flask import Flask, request, jsonify
+import pickle  # Used to load the pre-trained model
+import numpy as np
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+import os
 
-@socketio.on("joinRoom")
-def handle_join(data):
-    username = data["username"]
-    roomname = data["roomname"]
-    join_room(roomname)
-    p_user = dummy_user.join_user(request.sid, username, roomname)
-    send(f"{p_user['username']} has joined the chat", room=roomname)
+curr_dir = os.getcwd()
 
-@socketio.on("chat")
-def handle_chat(data):
-    p_user = dummy_user.get_current_user(request.sid)
-    if p_user:
-        roomname = p_user["room"]
-        username = p_user["username"]
-        text = data["text"]
-        emit("message", {"username": username, "text": text}, room=roomname)
+model_dir = f"{curr_dir}/models/model"
+vector_dir = f"{curr_dir}/models/vector"
 
-@socketio.on("disconnect")
-def handle_disconnect():
-    p_user = dummy_user.user_disconnect(request.sid)
-    if p_user:
-        roomname = p_user["room"]
-        username = p_user["username"]
-        send(f"{username} has left the chat", room=roomname)
+# Load the pre-trained linear regression model
+with open(os.path.relpath(model_dir), "rb") as model_file:
+    model = pickle.load(model_file)
+
+# Load the pre-trained word vector (if needed)
+with open(os.path.relpath(vector_dir), "rb") as vector_file:
+    vector = pickle.load(vector_file)
+
+
+@app.route("/detect-hate-word", methods=["POST"])
+def detect_hate_word():
+    data = request.get_json()
+    text = data.get("text", "")
+
+    # Preprocess the input text and convert it to a numerical feature vector
+    # If you have a word vector model, you can use it here
+    # For simplicity, we'll just use the length of the text as a feature
+    input_vector = vector.transform([text])
+
+    # Use the pre-trained linear regression model to predict
+    prediction = model.predict(input_vector)
+
+    # Decide a threshold for classification (e.g., 0.5)
+    is_hate_word = prediction > 0.5
+
+    result = {
+        "text": text if not is_hate_word else "*****",
+        "is_hate_word": bool(is_hate_word),
+    }
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":
-    socketio.run(app,port=8000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
